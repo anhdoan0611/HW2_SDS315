@@ -1,0 +1,221 @@
+---
+title: "HW2_SDS315"
+author: "Anh Doan(atd2354)"
+output:   
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    theme: lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+
+profs <- read.csv("profs.csv")
+bike <- read.csv("bikeshare.csv")
+capmetro_UT <- read.csv("capmetro_UT.csv")
+billboard <- read.csv("billboard.csv")
+
+profs_ggplot <- ggplot(profs)
+bike_ggplot <- ggplot(bike)
+capmetro_UT_ggplot <- ggplot(capmetro_UT)
+billboard_ggplot <- ggplot(billboard)
+```
+
+# **Problem 1: Beauty, or not, in the classroom** 
+
+### **Part A: Distribution of Course Evaluation Scores**
+
+```{r, echo = FALSE}
+profs_ggplot + geom_histogram(aes(x=eval), fill = "darkred", col = "black") + labs(title = "Distribution of Course Evaluation Scores", x = "Course Evaluation Scores", y = "Number of Professors") + ylim(0,40) 
+```
+
+### **Part B: Distribution of Course Evaluation Scores by Native English Proficiency**
+
+```{r}
+profs_ggplot + geom_boxplot(aes(x=native, y = eval, fill= native)) +
+  theme(legend.position = "none") +
+  labs(title = "Distribution of Evaluation Scores by Native English Proficiency",
+       x = "Is the Professor a Native English Speaker?",
+       y = "Course Evaluation Scores")
+```
+
+
+### **Part C: Distribution of Course Evaluation Scores by Gender**
+
+```{r}
+profs_ggplot + geom_histogram(aes(x=eval, fill = gender), col = "black") +
+  facet_wrap(~gender, nrow=2) +
+  theme(strip.text = element_text(size = 12, face = "bold"),
+        legend.position = "none") + 
+  labs(title = "Distribution of Course Evaluation Scores by Gender", 
+       x = "Course Evaluation Scores",
+       y = "Number of Professors") 
+```
+
+### **Part D: Physical Attractiveness vs Evaluation Scores**
+
+```{r}
+profs_ggplot + geom_point(aes(x=eval, y=beauty), alpha = 0.6, color = "red") +
+  geom_smooth(method = "lm", aes(x=eval, y = beauty), se = FALSE) +
+  labs(title = "Relationship Between Physical Attractiveness and Evaluation Scores",
+       x = "Course Evaluation Scores",
+       y = "Physical Attractiveness")
+```
+
+# **Problem 2: Bike Sharing**
+
+### **Part A: Average Hourly Bike Rentals**
+
+```{r}
+avg1 <- aggregate(total ~ hr, bike, mean)
+
+ggplot(avg1) + geom_line(aes(x=hr, y=total)) +
+  geom_point(aes(x=hr, y=total),color = "red", size = 2) +
+  labs(
+    title = "Average Hourly Bike Rentals",
+    x = "Hour of the Day",
+    y = "Average Bike Rentals"
+  ) +
+  scale_x_continuous(breaks = 0:23) 
+```
+
+### **Part B: Average Hourly Bike Rentals on Workdays vs Weekends**
+
+```{r}
+avg2 <- aggregate(total ~ hr + workingday, bike, mean)
+
+ggplot(avg2) + geom_line(aes(x=hr, y = total, group = workingday)) +
+  facet_wrap(~workingday, labeller = as_labeller(c("0" = "Non-Working Day", "1" = "Working Day"))) +
+  geom_point(aes(x=hr, y=total),color = "red", size = 2) +
+  theme(strip.text = element_text(face = "bold", size = 14)) +
+  labs(title = "Hourly Bike Rentals: Working vs Non-Working Days",
+      x = "Hour of the Day",
+      y = "Average Bike Rentals") 
+```
+
+### **Part C: 9 AM Bike Rentals by Weather and Workday Status**
+
+```{r}
+subset <- bike[bike$hr == 9,]
+avg3 <- aggregate(total~weathersit + workingday, subset, mean)
+
+ggplot(avg3, aes(x = weathersit, y = total, fill = weathersit)) +
+  geom_bar(stat = "identity", color = "black") +
+  labs(
+    title = "Average 9 AM Bike Rentals by Weather Situation and Workday Status",
+    x = "Weather Situation",
+    y = "Average Bike Rentals"
+  ) +
+  facet_wrap(~ workingday, labeller = as_labeller(c("0" = "Non-Working Day", "1" = "Working Day"))) +
+  theme(strip.text = element_text(face = "bold", size = 13), legend.position = "none") 
+```
+
+# **Problem 3: Capital Metro UT Ridership**
+
+```{r}
+capmetro_UT <- mutate(capmetro_UT, day_of_week = factor(day_of_week,levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")), month = factor(month,levels=c("Sep", "Oct","Nov")))
+
+avg4 <- aggregate(boarding ~ hour_of_day + day_of_week + month, capmetro_UT, mean)
+avg_ggplot <- ggplot(avg4)
+```
+
+### **Part 1: Average Boardings by Hour of The Day, Day of The Week, and Month**
+
+```{r}
+avg_ggplot + geom_line(aes(x=hour_of_day, y = boarding, color = month)) +
+  facet_wrap(~day_of_week,) +
+  labs(
+    title = "Average Boardings by Hour of The Day, Day of The Week, and Month",
+    x = "Hours of The Day",
+    y = "Average Boardings",
+    color = "Month"
+  ) +
+  theme(
+    strip.text = element_text(size = 12, face = "bold")) +
+  scale_x_continuous(
+    breaks = seq(0, 23, by = 2)
+  )
+```
+
+### **Part 2: Boardings vs Temperature Faceted by Hour of The Day**
+
+```{r}
+#Convert variables to upper case
+capmetro_UT$weekend <- str_to_title(capmetro_UT$weekend)
+capmetro_UT_ggplot <- ggplot(capmetro_UT)
+
+capmetro_UT_ggplot + geom_point(aes(x=temperature, y=boarding, color = weekend)) +
+  facet_wrap(~hour_of_day) +
+  labs(
+    title = "Boardings vs Temperature Faceted by Hour of The Day",
+    x = "Temperature",
+    y = "Boardings",
+    color = "Day Type"
+  )
+```
+
+# **Problem 4: Wrangling the Billboard Top 100**
+
+### **Part A: Top 10 Most Popular Songs Since 1958**
+
+```{r}
+grouped <- group_by(billboard, song)
+filtered <- filter(grouped, weeks_on_chart == max(weeks_on_chart))
+
+# Summarize the total weeks for each unique song
+summarized <- summarise(filtered, Performer = first(performer), count = max(weeks_on_chart))
+
+# Sort in descending order of count
+sorted <- summarized[order(-summarized$count),]
+head(sorted, 10)
+```
+
+### **Part B: Musical Diversity in the Billboard Top 100 Over Time**
+
+```{r, results="hide"}
+filtered <- filter(billboard, year!= 1958 & year!= 2021)
+diversity <- summarise(group_by(filtered, year), count = length(unique(song)))
+
+diversity_ggplot <- ggplot(diversity)
+diversity_ggplot + 
+  geom_point(aes(x=year, y=count), color="red") +
+  geom_line(aes(x=year, y =count)) +
+  labs(
+    title = "Musical Diversity in the Billboard Top 100 Over Time",
+    x = "Year",
+    y = "Number of Songs"
+  ) +
+   scale_x_continuous(
+    breaks = seq(1960,2020, by = 5))
+```
+
+### **Part C: Artists With More Than 30 Ten-Week Hits**
+
+```{r}
+# Filter for songs that appeared on the Billboard Top 100 for at least 10 weeks
+ten_week_hits <- billboard %>%
+  group_by(performer, song) %>%
+  summarize(weeks_on_chart = n(), .groups = "drop") %>%
+  filter(weeks_on_chart >= 10) %>%
+  group_by(performer) %>%
+  summarize(ten_week_hits = n(), .groups = "drop") %>%
+  filter(ten_week_hits >= 30)
+
+# Create the bar plot
+ggplot(ten_week_hits, aes(x = reorder(performer, ten_week_hits), y = ten_week_hits)) +
+  geom_bar(stat = "identity", fill = "darkred", color = "black") +
+  coord_flip() +
+  labs(title = "Artists with More Than 30 Ten-Week Hits",
+       x = "Artist",
+       y = "Number of Ten-Week Hits") 
+```
+
